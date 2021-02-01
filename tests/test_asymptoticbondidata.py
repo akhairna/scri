@@ -129,7 +129,12 @@ def test_abd_schwarzschild_transform():
 
 def test_abd_bondi_angular_momentum():
     tolerance = 1e-14
-    for v in [np.array([0.1, 0.0, 0.0]), np.array([0.0, 0.1, 0.0]), np.array([0.1, 0.1, 0.1]), np.array([0.0, 0.0, 0.1])]:
+    for v in [
+        np.array([0.1, 0.0, 0.0]),
+        np.array([0.0, 0.1, 0.0]),
+        np.array([0.1, 0.1, 0.1]),
+        np.array([0.0, 0.0, 0.1]),
+    ]:
         mass = 1.0
         spin = 0.456
         ell_max = 8
@@ -144,6 +149,7 @@ def test_abd_bondi_angular_momentum():
         angular_momentum = abd.bondi_angular_momentum()[0]
         expected_angular_momentum = γ * angular_momentum + (1 - γ) * np.dot(angular_momentum, v / β) * (v / β)
         assert np.allclose(expected_angular_momentum, transformed_angular_momentum, atol=tolerance, rtol=tolerance)
+
 
 def test_abd_bondi_spin():
     v = np.array([0.085, -0.034, 0.1])
@@ -165,4 +171,3 @@ def test_abd_bondi_spin():
     S_prime = abdprime.bondi_dimensionless_spin()
     tolerance = 1e-14
     assert np.allclose(S_prime[-1], S[-1], atol=tolerance, rtol=tolerance)
-

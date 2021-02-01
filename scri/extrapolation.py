@@ -4,9 +4,7 @@ mode_regex = r"""Y_l(?P<L>[0-9]+)_m(?P<M>[-+0-9]+)\.dat"""
 
 
 def pick_Ch_mass(filename="Horizons.h5"):
-    """Deduce the best Christodoulou mass by finding the statistical "mode" (after binning).
-
-    """
+    """Deduce the best Christodoulou mass by finding the statistical "mode" (after binning)."""
     from h5py import File
     from os.path import isdir
     from numpy import histogram
@@ -25,9 +23,7 @@ def pick_Ch_mass(filename="Horizons.h5"):
 
 
 def monotonic_indices(T, MinTimeStep=1.0e-3):
-    """Given an array of times, return the indices that make the array strictly monotonic.
-
-    """
+    """Given an array of times, return the indices that make the array strictly monotonic."""
     from numpy import delete
 
     Ind = range(len(T))
@@ -137,7 +133,10 @@ def validate_single_waveform(h5file, filename, WaveformName, ExpectedNModes, Exp
         Valid = False
         print(
             "{}:{}/ArealRadius.dat\n\tGot shape {}; expected ({}, 2)".format(
-                filename, WaveformName, h5file[WaveformName + "/ArealRadius.dat"].shape, ExpectedNTimes,
+                filename,
+                WaveformName,
+                h5file[WaveformName + "/ArealRadius.dat"].shape,
+                ExpectedNTimes,
             )
         )
     # Check AverageLapse
@@ -145,7 +144,10 @@ def validate_single_waveform(h5file, filename, WaveformName, ExpectedNModes, Exp
         Valid = False
         print(
             "{}:{}/AverageLapse.dat\n\tGot shape {}; expected ({}, 2)".format(
-                filename, WaveformName, h5file[WaveformName + "/AverageLapse.dat"].shape, ExpectedNTimes,
+                filename,
+                WaveformName,
+                h5file[WaveformName + "/AverageLapse.dat"].shape,
+                ExpectedNTimes,
             )
         )
     # Check Y_l*_m*.dat
@@ -168,7 +170,11 @@ def validate_single_waveform(h5file, filename, WaveformName, ExpectedNModes, Exp
                 Valid = False
                 (
                     "{}:{}/{}\n\tGot shape {}; expected ({}, 3)".format(
-                        filename, WaveformName, dataset, h5file[WaveformName + "/" + dataset].shape, ExpectedNTimes,
+                        filename,
+                        WaveformName,
+                        dataset,
+                        h5file[WaveformName + "/" + dataset].shape,
+                        ExpectedNTimes,
                     )
                 )
     return Valid
@@ -201,7 +207,7 @@ def validate_group_of_waveforms(h5file, filename, WaveformNames, LModes):
 def read_finite_radius_waveform(
     n, filename, WaveformName, ChMass, InitialAdmEnergy, YLMRegex, LModes, DataType, VersionHist, Ws,
 ):
-    """This is just a worker function defined for read_finite_radius_data, below, reading a single 
+    """This is just a worker function defined for read_finite_radius_data, below, reading a single
     waveform from an h5 file of many waveforms. You probably don't need to call this directly.
 
     """
@@ -214,7 +220,15 @@ def read_finite_radius_waveform(
         """# extrapolation.read_finite_radius_waveform""" + """({0}, {1}, {2}, {3}, {4}, {5}, {6}, {7}, {8}, Ws)"""
     )
     construction = construction.format(
-        n, filename, WaveformName, ChMass, InitialAdmEnergy, YLMRegex.pattern, LModes, DataType, VersionHist,
+        n,
+        filename,
+        WaveformName,
+        ChMass,
+        InitialAdmEnergy,
+        YLMRegex.pattern,
+        LModes,
+        DataType,
+        VersionHist,
     )
     try:
         f = File(filename, "r")
@@ -295,9 +309,7 @@ def read_finite_radius_waveform(
 def read_finite_radius_data(
     ChMass=0.0, filename="rh_FiniteRadii_CodeUnits.h5", CoordRadii=[], LModes=range(2, 100),
 ):
-    """Read data at various radii, and offset by tortoise coordinate.
-
-    """
+    """Read data at various radii, and offset by tortoise coordinate."""
 
     if ChMass == 0.0:
         raise ValueError("ChMass=0.0 is not a valid input value.")
@@ -391,9 +403,7 @@ def read_finite_radius_data(
 
 
 def set_common_time(Ws, Radii, MinTimeStep=0.005, EarliestTime=-3e300, LatestTime=3e300):
-    """Interpolate Waveforms and radius data to a common set of times.
-
-    """
+    """Interpolate Waveforms and radius data to a common set of times."""
     from scipy import interpolate
 
     NWaveforms = len(Radii)
@@ -858,7 +868,9 @@ def extrapolate(**kwargs):
                     ArgDiff -= 2 * pi * round(ArgDiff[len(ArgDiff) // 3] / (2 * pi))
                 plt.figure(0)
                 plt.semilogy(
-                    Diff.t, AbsDiff, label=r"$(N={}) - (N={})$".format(ExtrapolationOrder, ExtrapolationOrders[i - 1]),
+                    Diff.t,
+                    AbsDiff,
+                    label=r"$(N={}) - (N={})$".format(ExtrapolationOrder, ExtrapolationOrders[i - 1]),
                 )
                 plt.figure(1)
                 plt.semilogy(
@@ -891,6 +903,7 @@ def extrapolate(**kwargs):
         plt.gca().axvline(x=MaxNormTime, ls="--")
         try:
             from matplotlib.pyplot import tight_layout
+
             tight_layout(pad=0.5)
         except:
             pass
@@ -991,9 +1004,7 @@ def _safe_format(s, **keys):
 
 
 def UnstartedExtrapolations(TopLevelOutputDir, SubdirectoriesAndDataFiles):
-    """Find unstarted extrapolation directories.
-
-    """
+    """Find unstarted extrapolation directories."""
     from os.path import exists
 
     Unstarted = []
@@ -1005,9 +1016,7 @@ def UnstartedExtrapolations(TopLevelOutputDir, SubdirectoriesAndDataFiles):
 
 
 def NewerDataThanExtrapolation(TopLevelInputDir, TopLevelOutputDir, SubdirectoriesAndDataFiles):
-    """Find newer data than extrapolation.
-
-    """
+    """Find newer data than extrapolation."""
     from os.path import exists, getmtime
 
     Newer = []
@@ -1023,9 +1032,7 @@ def NewerDataThanExtrapolation(TopLevelInputDir, TopLevelOutputDir, Subdirectori
 
 
 def StartedButUnfinishedExtrapolations(TopLevelOutputDir, SubdirectoriesAndDataFiles):
-    """Find directories with extrapolations that started but didn't finish.
-
-    """
+    """Find directories with extrapolations that started but didn't finish."""
     from os.path import exists
 
     Unfinished = []
@@ -1039,9 +1046,7 @@ def StartedButUnfinishedExtrapolations(TopLevelOutputDir, SubdirectoriesAndDataF
 
 
 def ErroredExtrapolations(TopLevelOutputDir, SubdirectoriesAndDataFiles):
-    """Find directories with errors.
-
-    """
+    """Find directories with errors."""
     from os.path import exists
 
     Errored = []
@@ -1053,9 +1058,7 @@ def ErroredExtrapolations(TopLevelOutputDir, SubdirectoriesAndDataFiles):
 
 
 def FindPossibleExtrapolationsToRun(TopLevelInputDir):
-    """Find all possible extrapolations.
-
-    """
+    """Find all possible extrapolations."""
     from os import walk
     from re import compile as re_compile
 
@@ -1134,7 +1137,11 @@ def RunExtrapolation(TopLevelInputDir, TopLevelOutputDir, Subdirectory, DataFile
             print(
                 "\n\nRunExtrapolation got an error ({4}) on "
                 + "['{}', '{}', '{}', '{}'].\n\n".format(
-                    TopLevelInputDir, TopLevelOutputDir, Subdirectory, DataFile, ReturnValue,
+                    TopLevelInputDir,
+                    TopLevelOutputDir,
+                    Subdirectory,
+                    DataFile,
+                    ReturnValue,
                 )
             )
             with open(f"{OutputDir}/.error_{DataFile}", "w"):
@@ -1260,7 +1267,10 @@ def _Extrapolate(FiniteRadiusWaveforms, Radii, ExtrapolationOrders, Omegas=None,
             ExtrapolatedWaveforms[i_N] = scri.WaveformModes(
                 t=FiniteRadiusWaveforms[NFiniteRadii - 1].t,
                 frame=FiniteRadiusWaveforms[NFiniteRadii - 1].frame,
-                data=np.zeros((NTimes, NModes), dtype=FiniteRadiusWaveforms[NFiniteRadii - 1].data.dtype,),
+                data=np.zeros(
+                    (NTimes, NModes),
+                    dtype=FiniteRadiusWaveforms[NFiniteRadii - 1].data.dtype,
+                ),
                 history=FiniteRadiusWaveforms[NFiniteRadii - 1].history + [f"### Extrapolating with N={N}\n"],
                 version_hist=FiniteRadiusWaveforms[NFiniteRadii - 1].version_hist,
                 frameType=FiniteRadiusWaveforms[NFiniteRadii - 1].frameType,
@@ -1286,7 +1296,8 @@ def _Extrapolate(FiniteRadiusWaveforms, Radii, ExtrapolationOrders, Omegas=None,
             completed = int(LengthProgressBar * i_t / float(NTimes - 1))
             if completed > last_completed or i_t == 0:
                 print(
-                    "[{}{}]".format("#" * completed, "-" * (LengthProgressBar - completed)), end="\r",
+                    "[{}{}]".format("#" * completed, "-" * (LengthProgressBar - completed)),
+                    end="\r",
                 )
                 stdout.flush()
                 last_completed = completed

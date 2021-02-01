@@ -58,13 +58,13 @@ def bms_charge_to_vector(charge):
 def bondi_rest_mass(self):
     """Compute the rest mass from the Bondi four-momentum of the AsymptoticBondiData."""
     four_momentum = self.bondi_four_momentum()
-    rest_mass = np.sqrt(four_momentum[:, 0]**2 - np.sum(four_momentum[:, 1:]**2, axis=1))
+    rest_mass = np.sqrt(four_momentum[:, 0] ** 2 - np.sum(four_momentum[:, 1:] ** 2, axis=1))
     return rest_mass
 
 
 def bondi_four_momentum(self):
     """Compute the Bondi four-momentum of the AsymptoticBondiData."""
-    ell_max = 1 # Compute only the parts we need, ell<=1
+    ell_max = 1  # Compute only the parts we need, ell<=1
     momentum_charge = self.mass_aspect(ell_max).view(np.ndarray) / sqrt(4 * pi)
     return bms_charge_to_vector(momentum_charge)
 
@@ -72,12 +72,16 @@ def bondi_four_momentum(self):
 def bondi_angular_momentum(self, output_dimensionless=False):
     """Compute the (total) Bondi angular momentum vector of the AsymptoticBondiData via
     Eq. (8) in T. Dray (1985) [DOI:10.1088/0264-9381/2/1/002]."""
-    ell_max = 1 # Compute only the parts we need, ell<=1
-    angular_momentum_charge =  -1j * (
-        self.psi1.truncate_ell(ell_max)
-        + self.sigma.multiply(self.sigma.bar.eth_GHP, truncator=lambda tup: ell_max)
-        + 0.5 * (self.sigma.multiply(self.sigma.bar, truncator=lambda tup: ell_max)).eth_GHP
-    ).view(np.ndarray) / sqrt(4 * pi)
+    ell_max = 1  # Compute only the parts we need, ell<=1
+    angular_momentum_charge = (
+        -1j
+        * (
+            self.psi1.truncate_ell(ell_max)
+            + self.sigma.multiply(self.sigma.bar.eth_GHP, truncator=lambda tup: ell_max)
+            + 0.5 * (self.sigma.multiply(self.sigma.bar, truncator=lambda tup: ell_max)).eth_GHP
+        ).view(np.ndarray)
+        / sqrt(4 * pi)
+    )
     return bms_charge_to_vector(angular_momentum_charge)[:, 1:]
 
 
@@ -104,14 +108,14 @@ def bondi_boost_charge(self):
     """Compute the Bondi boost charge vector of the AsymptoticBondiData via Eq. (8)
     in T. Dray (1985) [DOI:10.1088/0264-9381/2/1/002]. This gives the boost charge
     corresponding to the boost with origin at t=0."""
-    ell_max = 1 # Compute only the parts we need, ell<=1
+    ell_max = 1  # Compute only the parts we need, ell<=1
     boost_charge = (
         self.psi1.truncate_ell(ell_max)
         + self.sigma.multiply(self.sigma.bar.eth_GHP, truncator=lambda tup: ell_max)
         + 0.5 * (self.sigma.multiply(self.sigma.bar, truncator=lambda tup: ell_max)).eth_GHP
-        - self.t * (
-            self.psi2.truncate_ell(ell_max)
-            + self.sigma.multiply(self.sigma.bar.dot, truncator=lambda tup: ell_max)
+        - self.t
+        * (
+            self.psi2.truncate_ell(ell_max) + self.sigma.multiply(self.sigma.bar.dot, truncator=lambda tup: ell_max)
         ).real.eth_GHP
     ).view(np.ndarray) / sqrt(4 * pi)
     return bms_charge_to_vector(boost_charge)[:, 1:]
@@ -124,7 +128,7 @@ def bondi_comoving_CoM_charge(self):
 
     where N^i is the boost charge and P^i is the momentum. See Eq. (3.4) and the
     discussion in arXiv:1912.03164."""
-    ell_max = 1 # Compute only the parts we need, ell<=1
+    ell_max = 1  # Compute only the parts we need, ell<=1
     comoving_CoM_charge = (
         self.psi1.truncate_ell(ell_max)
         + self.sigma.multiply(self.sigma.bar.eth_GHP, truncator=lambda tup: ell_max)
@@ -164,7 +168,7 @@ def bondi_dimensionless_spin_from_comom(self, t):
     boosted_abd = self.transform(time_translation=t, boost_velocity=velocity)
     t_idx = np.abs(boosted_abd.t).argmin()
     M = boosted_abd.bondi_rest_mass()[t_idx]
-    spin = boosted_abd.bondi_angular_momentum()[t_idx] / M**2
+    spin = boosted_abd.bondi_angular_momentum()[t_idx] / M ** 2
     return spin
 
 
