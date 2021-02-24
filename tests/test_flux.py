@@ -139,15 +139,13 @@ def test_angular_momentum_flux():
     
 
 def test_boost_flux():
-    import numpy as np
     import scri
     from quaternion import rotate_vectors    
     
     h = scri.sample_waveforms.single_mode(8,5)
     R = np.quaternion(1,1,1,1).normalized()
+    M = quaternion.as_rotation_matrix(~R)
     A = scri.boost_flux(h)
-    
-    for i in range(len(A)):
-        A[i,:] = rotate_vectors(R,A[i,:],axis = -1)
+    A = np.transpose(np.matmul(M, np.transpose(A)))    
     B = scri.boost_flux(h.rotate_decomposition_basis(~R))
     assert np.allclose(A, B, rtol=1e-13, atol=1e-13)
