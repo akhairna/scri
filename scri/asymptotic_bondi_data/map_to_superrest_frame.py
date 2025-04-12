@@ -13,7 +13,7 @@ import quaternion
 from quaternion.calculus import indefinite_integral as integrate
 
 from scipy.interpolate import CubicSpline
-
+from scipy.optimize import least_squares
 
 def MT_to_WM(h_mts, sxs_version=False, dataType=scri.h):
     """Convert a ModesTimeSeries object to a scri or a sxs WaveformModes object.
@@ -319,7 +319,7 @@ def supertranslation_to_map_to_superrest_frame(
     return scri.bms_transformations.BMSTransformation(supertranslation=supertranslation), rel_errs
 
 
-def transformation_from_CoM_charge(G, t):
+def transformation_from_CoM_charge(G, t, Gfun=None, Gparams0=None, Gargs=None):
     """Obtain the space translation and boost velocity from the center-of-mass charge.
 
     This is defined in Eq (18) of https://journals.aps.org/prd/abstract/10.1103/PhysRevD.104.024051.
@@ -330,19 +330,34 @@ def transformation_from_CoM_charge(G, t):
         Center-of-mass charge.
     t: ndarray, real
         Time array corresponding to the size of the center-of-mass charge.
+    Gfun: callable
+        Analytical function used for the fitting. Default is a linear-fit.
+    Gparams0: ndarray
+        Initial guess for the fitting process. Default is None.
+    Gargs: tuple
+        Additional arguments passed to `Gfun`. Default is None.
     """
-    polynomial_fit = np.polyfit(t, G, deg=1)
+
+    if Gfun is None and Gargs is None:
+        Gfun = lambda Gparams, time, *args: time[:, None] @ Gparams[:3][None, :] + Gparams[3:6][None, :]
+        Gargs = ()
+
+    Gparams0 = np.zeros(6) if Gparams0 is None else Gparams0
+
+    residual = lambda Gparams, time, *args: (G - Gfun(Gparams, time, *args)).ravel()
+
+    fit = least_squares(residual, Gparams0, args=(t, *Gargs), method='trf')
 
     CoM_transformation = scri.bms_transformations.BMSTransformation(
-        supertranslation=-np.insert(sf.vector_as_ell_1_modes(polynomial_fit[1]), 0, 0),
-        boost_velocity=polynomial_fit[0],
+        supertranslation=-np.insert(sf.vector_as_ell_1_modes(fit.x[3:6]), 0, 0),
+        boost_velocity=fit.x[0:3],
         order=["supertranslation", "boost_velocity", "frame_rotation"],
     )
-
     return CoM_transformation
 
 
-def com_transformation_to_map_to_superrest_frame(abd, N_itr_max=10, rel_err_tol=1e-12, print_conv=False):
+def com_transformation_to_map_to_superrest_frame(abd, Gfun=None, Gparams0=None, Gargsfun=None,
+                                                 N_itr_max=10, rel_err_tol=1e-12, print_conv=False):
     """Determine the space translation and boost needed to map an abd object to the superrest frame.
 
     These are found through an iterative solve; e.g., compute the transformations needed to minimize
@@ -357,7 +372,7 @@ def com_transformation_to_map_to_superrest_frame(abd, N_itr_max=10, rel_err_tol=
     N_itr_max: int, defaults to 10
         Maximum number of iterations to perform. Default is 10.
     rel_err_tol: float, defaults to 1e-12
-        Minimum relativie error tolerance between transformation iterations. Default is 1e-12.
+        Minimum relative error tolerance between transformation iterations. Default is 1e-12.
     print_conv: bool, defaults to False
         Whether or not to print the termination criterion. Default is False.
     """
@@ -371,8 +386,10 @@ def com_transformation_to_map_to_superrest_frame(abd, N_itr_max=10, rel_err_tol=
         if itr == 0:
             abd_prime = abd.copy()
             G_prime = abd_prime.bondi_CoM_charge() / abd_prime.bondi_four_momentum()[:, 0, None]
+            Gargs = [func(abd_prime) for func in Gargsfun] if Gargsfun else None
 
-        new_CoM_transformation = transformation_from_CoM_charge(G_prime, abd_prime.t)
+        new_CoM_transformation = transformation_from_CoM_charge(G_prime, abd_prime.t,
+                                                                Gfun=Gfun, Gparams0=Gparams0, Gargs=Gargs)
         CoM_transformation = (new_CoM_transformation * CoM_transformation).reorder(
             ["supertranslation", "frame_rotation", "boost_velocity"]
         )
@@ -387,6 +404,7 @@ def com_transformation_to_map_to_superrest_frame(abd, N_itr_max=10, rel_err_tol=
         )
 
         G_prime = abd_prime.bondi_CoM_charge() / abd_prime.bondi_four_momentum()[:, 0, None]
+        Gargs = [func(abd_prime) for func in Gargsfun] if Gargsfun else None
 
         rel_err = integrate(np.linalg.norm(G_prime, axis=-1), abd_prime.t)[-1] / (abd_prime.t[-1] - abd_prime.t[0])
         if rel_err < min(rel_errs):
@@ -686,6 +704,9 @@ def map_to_superrest_frame(
     fix_time_phase_freedom=False,
     modes=None,
     print_conv=False,
+    Gfun=None,
+    Gparams0=None,
+    Gargsfun=None,
 ):
     """Transform an abd object to the superrest frame.
 
@@ -836,6 +857,7 @@ def map_to_superrest_frame(
             elif transformation == "CoM_transformation":
                 new_transformation, CoM_rel_errs = com_transformation_to_map_to_superrest_frame(
                     abd_sliced_prime,
+                    Gfun=Gfun, Gparams0=Gparams0, Gargsfun=Gargsfun,
                     N_itr_max=N_itr_maxes["CoM_transformation"],
                     rel_err_tol=rel_err_tols["CoM_transformation"],
                     print_conv=print_conv,
