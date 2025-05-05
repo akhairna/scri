@@ -871,8 +871,8 @@ def map_to_superrest_frame(
                     rel_err, _, res = align2d(
                         MT_to_WM(WM_to_MT(strain_sliced_prime), sxs_version=True),
                         MT_to_WM(WM_to_MT(target_strain), sxs_version=True),
-                        0 - padding_time,
-                        0 + padding_time,
+                        0 - (padding_time + 200),
+                        0 + (padding_time + 200),
                         n_brute_force_δt=None,
                         n_brute_force_δϕ=None,
                         include_modes=modes,
