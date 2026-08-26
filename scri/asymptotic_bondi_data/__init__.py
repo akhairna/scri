@@ -117,6 +117,10 @@ class AsymptoticBondiData:
         return self.sigma
 
     @property
+    def has_sigma(self):
+        return self.sigma is not None
+
+    @property
     def h(self):
         h_mts = 2.0 * self._sigma.bar
         return WaveformModes(
@@ -140,6 +144,10 @@ class AsymptoticBondiData:
         return self.psi4
 
     @property
+    def has_psi4(self):
+        return self.psi4 is not None
+
+    @property
     def psi3(self):
         return self._psi3
 
@@ -147,6 +155,10 @@ class AsymptoticBondiData:
     def psi3(self, psi3prm):
         self._psi3[:] = psi3prm
         return self.psi3
+
+    @property
+    def has_psi3(self):
+        return self.psi3 is not None
 
     @property
     def psi2(self):
@@ -158,6 +170,10 @@ class AsymptoticBondiData:
         return self.psi2
 
     @property
+    def has_psi2(self):
+        return self.psi2 is not None
+
+    @property
     def psi1(self):
         return self._psi1
 
@@ -167,6 +183,10 @@ class AsymptoticBondiData:
         return self.psi1
 
     @property
+    def has_psi1(self):
+        return self.psi1 is not None
+
+    @property
     def psi0(self):
         return self._psi0
 
@@ -174,6 +194,19 @@ class AsymptoticBondiData:
     def psi0(self, psi0prm):
         self._psi0[:] = psi0prm
         return self.psi0
+
+    @property
+    def has_psi0(self):
+        return self._psi0 is not None
+
+    @property
+    def data_components(self):
+        """Fields that are present in the instance."""
+
+        fields = ["psi0", "psi1", "psi2", "psi3", "psi4", "sigma"]
+        fields_present = [field for field in fields if getattr(self, f"has_{field}") ]
+
+        return fields_present
 
     #Slicing
     def __getitem__(self, key):
