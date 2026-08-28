@@ -9,8 +9,9 @@ Scri.seval("using Scri")
 
 transform_bang = Scri.seval("transform!")
 
+
 def _process_transformation_kwargs(**kwargs):
-# Build the supertranslation and spacetime_translation arrays
+    # Build the supertranslation and spacetime_translation arrays
     supertranslation = np.zeros((4,), dtype=complex)  # For now; may be resized below
     ell_max_supertranslation = 1  # For now; may be increased below
     if "supertranslation" in kwargs:
@@ -19,7 +20,7 @@ def _process_transformation_kwargs(**kwargs):
             # I don't actually think this can ever happen...
             raise TypeError(
                 f"Input argument `supertranslation` should be a complex array with size>0. Got a {supertranslation.dtype} array of shape {supertranslation.shape}."
-                )
+            )
 
         # Make sure the array has size at least 4, by padding with zeros
         if supertranslation.size <= 4:
@@ -31,7 +32,7 @@ def _process_transformation_kwargs(**kwargs):
         if (ell_max_supertranslation + 1) ** 2 != len(supertranslation):
             raise ValueError(
                 f"Input supertranslation parameter must contain modes from ell=0 up to some ell_max, including all relevant m modes in standard order (see `spherical` documentation for details). Thus, it must be an array with length given by a perfect square; its length is {len(supertranslation)}."
-                )
+            )
 
     spacetime_translation = np.zeros((4,), dtype=float)
     spacetime_translation[0] = sf.constant_from_ell_0_mode(supertranslation[0]).real
@@ -42,7 +43,7 @@ def _process_transformation_kwargs(**kwargs):
         if st_trans.shape != (4,) or st_trans.dtype != "float":
             raise TypeError(
                 f"Input argument `spacetime_translation` should be a float array of shape (4,). Got a {st_trans.dtype} array of shape {st_trans.shape}."
-                )
+            )
 
         spacetime_translation = st_trans[:]
         supertranslation[0] = sf.constant_as_ell_0_mode(spacetime_translation[0])
@@ -66,29 +67,21 @@ def _process_transformation_kwargs(**kwargs):
     # Get the rotor for the frame rotation
     frame_rotation = np.quaternion(*np.array(kwargs.pop("frame_rotation", [1, 0, 0, 0]), dtype=float))
 
-    # These checks are probably not necessary since they are done by
-    # Quaternionic.jl as well.
-
-    # if frame_rotation.abs() < 3e-16:
-    #     raise ValueError(f"frame_rotation={frame_rotation} should be a single unit quaternion")
-    # frame_rotation = frame_rotation.normalized()
-
     # Get the boost velocity vector
     boost_velocity = np.array(kwargs.pop("boost_velocity", [0.0] * 3), dtype=float)
     beta = np.linalg.norm(boost_velocity)
     if boost_velocity.dtype != float or boost_velocity.shape != (3,) or beta >= 1.0:
         raise ValueError(
             f"Input boost_velocity=`{boost_velocity}` should be a 3-vector with magnitude strictly less than 1.0."
-            )
+        )
 
     return supertranslation, frame_rotation, boost_velocity
+
 
 def transform(self, **kwargs):
 
     # Parse the input arguments, and define the basic parameters for this function
-    (   frame_rotation,
-        boost_velocity,
-        supertranslation) = _process_transformation_kwargs(self.ell_max, **kwargs)
+    frame_rotation, boost_velocity, supertranslation = _process_transformation_kwargs(self.ell_max, **kwargs)
 
     v = Scri.quatvec(boost_velocity)
     R = Scri.rotor(frame_rotation)
