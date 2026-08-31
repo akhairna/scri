@@ -1,11 +1,11 @@
 import numpy as np
 import spherical as sf
-import quaternion
 
 import juliacall
 
 Scri = juliacall.newmodule("Scri.jl")
 Scri.seval("using Scri")
+Scri.seval("using Quaternionic")
 
 transform_bang = Scri.seval("transform!")
 
@@ -65,7 +65,7 @@ def _process_transformation_kwargs(**kwargs):
         supertranslation[0] = sf.constant_as_ell_0_mode(spacetime_translation[0])
 
     # Get the rotor for the frame rotation
-    frame_rotation = np.quaternion(*np.array(kwargs.pop("frame_rotation", [1, 0, 0, 0]), dtype=float))
+    frame_rotation = np.array(kwargs.pop("frame_rotation", [1, 0, 0, 0]), dtype=float)
 
     # Get the boost velocity vector
     boost_velocity = np.array(kwargs.pop("boost_velocity", [0.0] * 3), dtype=float)
@@ -81,7 +81,7 @@ def _process_transformation_kwargs(**kwargs):
 def transform(self, **kwargs):
 
     # Parse the input arguments, and define the basic parameters for this function
-    frame_rotation, boost_velocity, supertranslation = _process_transformation_kwargs(self.ell_max, **kwargs)
+    supertranslation, frame_rotation, boost_velocity = _process_transformation_kwargs(**kwargs)
 
     v = Scri.quatvec(boost_velocity)
     R = Scri.rotor(frame_rotation)
