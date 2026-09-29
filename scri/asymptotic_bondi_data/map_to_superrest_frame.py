@@ -340,7 +340,6 @@ def transformation_from_CoM_charge(G, t, Gfun=None, Gparams0=None, Gargs=None):
 
     For documentation on Gfun, refer to the documentation of com_transformation_to_map_to_superrest_frame.
     """
-
     if Gfun is None and Gargs is None:
         Gfun = lambda Gparams, time, *args: - time[:, None] @ Gparams[:3][None, :] + Gparams[3:6][None, :]
         Gargs = ()
@@ -357,12 +356,13 @@ def transformation_from_CoM_charge(G, t, Gfun=None, Gparams0=None, Gargs=None):
     residual = lambda Gparams, time, *args: (G - Gfun(Gparams, time, *args)).ravel()
 
     fit = least_squares(residual, Gparams0, args=(t, *Gargs), method='trf')
-
+# Changed a sign here. Is that right?
     CoM_transformation = scri.bms_transformations.BMSTransformation(
-        supertranslation=-np.insert(sf.vector_as_ell_1_modes(fit.x[3:6]), 0, 0),
-        boost_velocity=-fit.x[0:3],
+        supertranslation=np.insert(sf.vector_as_ell_1_modes(fit.x[3:6]), 0, 0),
+        boost_velocity=fit.x[0:3],
         order=["supertranslation", "boost_velocity", "frame_rotation"],
     )
+
     return CoM_transformation
 
 
@@ -840,7 +840,7 @@ def map_to_superrest_frame(
         }.
     order : list, optional
         Order in which to solve for the BMS transformations.
-        Default is ["rotation", "CoM_transformation", "supertranslation"].
+        Default is ["supertranslation", "rotation", "CoM_transformation"].
         If "time_phase" is included, then a time/phase optimization is performed.
     ell_max : int, optional
         Maximum ell to use for SWSH/Grid transformations.
@@ -914,7 +914,7 @@ def map_to_superrest_frame(
     # apply a time translation so that we're mapping
     # to the superrest frame at u = 0
     time_translation = scri.bms_transformations.BMSTransformation(supertranslation=[sf.constant_as_ell_0_mode(t_0)])
-    BMS_transformation = time_translation * scri.bms_transformations.BMSTransformation().reorder(
+    BMS_transformation = time_translation * scri.bms_transformations.BMSTransformation(ell_max=ell_max).reorder(
         ["supertranslation", "frame_rotation", "boost_velocity"]
     )
 
@@ -995,7 +995,6 @@ def map_to_superrest_frame(
             BMS_transformation = (new_transformation * BMS_transformation).reorder(
                 ["supertranslation", "frame_rotation", "boost_velocity"]
             )
-
             abd_sliced_prime = abd_sliced.transform(
                 supertranslation=BMS_transformation.supertranslation,
                 frame_rotation=BMS_transformation.frame_rotation.components,
@@ -1006,7 +1005,7 @@ def map_to_superrest_frame(
             pass
         else:
             rel_err = rel_err_for_abd_in_superrest(abd_sliced_prime, target_PsiM, target_strain)
-            
+
         if np.mean(rel_err) < min([np.mean(r) for r in rel_errs]):
             best_BMS_transformation = BMS_transformation.copy()
             best_rel_err = rel_err
@@ -1020,10 +1019,14 @@ def map_to_superrest_frame(
         else:
             print(f"superrest: tolerance achieved in {itr} iterations!")
 
+    print(f"before")
+    print(best_BMS_transformation.supertranslation[:4])
     # undo the time translation
     best_BMS_transformation = (time_translation.inverse() * best_BMS_transformation).reorder(
         ["supertranslation", "frame_rotation", "boost_velocity"]
     )
+    print("after_transformation")
+    print(best_BMS_transformation.supertranslation[:4])
 
     # transform abd
     abd_prime = abd.transform(

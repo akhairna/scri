@@ -182,7 +182,7 @@ def transform_supertranslation(S, lorentz, ell_max=None):
 
 class LorentzTransformation:
     def __init__(self, **kwargs):
-        self.ell_max = copy.deepcopy(kwargs.pop("ell_max", 12))
+        self.ell_max = copy.deepcopy(kwargs.pop("ell_max", 8))
         (
             frame_rotation,
             boost_velocity,
@@ -268,7 +268,7 @@ class LorentzTransformation:
 
 class BMSTransformation:
     def __init__(self, **kwargs):
-        self.ell_max = copy.deepcopy(kwargs.pop("ell_max", 12))
+        self.ell_max = copy.deepcopy(kwargs.pop("ell_max", 8))
         (
             frame_rotation,
             boost_velocity,

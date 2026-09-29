@@ -1,6 +1,7 @@
 import numpy as np
 import spherical as sf
-
+import functools
+from .. import ModesTimeSeries
 import juliacall
 
 Scri = juliacall.newmodule("Scri.jl")
@@ -97,10 +98,17 @@ def transform(self, **kwargs):
     data_components = DataComponents(*self.data_components)
 
     data_p, t_p = transform_bang(data_julia, times, v, R, α, data_components)
-    data_prime = data_p.to_numpy()
+    data_prime = np.array(data_p.to_numpy().T, dtype=np.complex128, order="C", copy=True) #No need to copy
     t_prime = t_p.to_numpy()
 
+    ModesTS = functools.partial(ModesTimeSeries, ell_max=ell_max)
+
     abd_prime = type(self)(t_prime, ell_max)
-    abd_prime._raw_data = data_prime
+    abd_prime.psi0 = ModesTS(data_prime[0], t_prime, spin_weight=2)
+    abd_prime.psi1 = ModesTS(data_prime[1], t_prime, spin_weight=1)
+    abd_prime.psi2 = ModesTS(data_prime[2], t_prime, spin_weight=0)
+    abd_prime.psi3 = ModesTS(data_prime[3], t_prime, spin_weight=-1)
+    abd_prime.psi4 = ModesTS(data_prime[4], t_prime, spin_weight=-2)
+    abd_prime.sigma = ModesTS(data_prime[5], t_prime, spin_weight=2)
 
     return abd_prime
