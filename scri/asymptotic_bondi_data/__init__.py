@@ -4,7 +4,7 @@ from .. import WaveformModes
 from .. import ModesTimeSeries
 from .. import Inertial
 from .. import h as h_DataType
-
+import copy
 
 class AsymptoticBondiData:
     """Class to store asymptotic Bondi data
@@ -117,6 +117,10 @@ class AsymptoticBondiData:
         return self.sigma
 
     @property
+    def has_sigma(self):
+        return self._sigma is not None
+
+    @property
     def h(self):
         h_mts = 2.0 * self._sigma.bar
         return WaveformModes(
@@ -140,6 +144,10 @@ class AsymptoticBondiData:
         return self.psi4
 
     @property
+    def has_psi4(self):
+        return self._psi4 is not None
+
+    @property
     def psi3(self):
         return self._psi3
 
@@ -147,6 +155,10 @@ class AsymptoticBondiData:
     def psi3(self, psi3prm):
         self._psi3[:] = psi3prm
         return self.psi3
+
+    @property
+    def has_psi3(self):
+        return self._psi3 is not None
 
     @property
     def psi2(self):
@@ -158,6 +170,10 @@ class AsymptoticBondiData:
         return self.psi2
 
     @property
+    def has_psi2(self):
+        return self._psi2 is not None
+
+    @property
     def psi1(self):
         return self._psi1
 
@@ -165,6 +181,10 @@ class AsymptoticBondiData:
     def psi1(self, psi1prm):
         self._psi1[:] = psi1prm
         return self.psi1
+
+    @property
+    def has_psi1(self):
+        return self._psi1 is not None
 
     @property
     def psi0(self):
@@ -175,6 +195,19 @@ class AsymptoticBondiData:
         self._psi0[:] = psi0prm
         return self.psi0
 
+    @property
+    def has_psi0(self):
+        return self._psi0 is not None
+
+    @property
+    def data_components(self):
+        """Fields that are present in the instance."""
+
+        fields = ["psi0", "psi1", "psi2", "psi3", "psi4", "sigma"]
+        fields_present = [field for field in fields if getattr(self, f"has_{field}")]
+
+        return fields_present
+
     #Slicing
     def __getitem__(self, key):
         """
@@ -182,30 +215,24 @@ class AsymptoticBondiData:
         """
         # If key is a valid time slice or index, extract the corresponding
         # sliced data
-        
         if not isinstance(key, (slice, int)):
-            raise ValueError(f"Invalid key `{key}` of type `{type(key)}`.")                 
+            raise ValueError(f"Invalid key `{key}` of type `{type(key)}`.")
 
-        import copy
-        import functools    
-    
-        ModesTS = functools.partial(ModesTimeSeries, ell_max=self.ell_max, multiplication_truncator=self.sigma._metadata['multiplication_truncator'])    
-        
-        new_abd = copy.copy(self)
+        import functools
+
+        ModesTS = functools.partial(ModesTimeSeries, ell_max=self.ell_max, multiplication_truncator=self.sigma._metadata['multiplication_truncator'])
+
+        new_abd = self.copy()
         new_abd._raw_data = self._raw_data[:, key, :]
-        new_abd._time = self._time[key]
+        new_abd._time = self.time[key]
 
-        new_abd._psi0 = ModesTS(new_abd._raw_data[0], new_abd._time, spin_weight=2)
-        new_abd._psi1 = ModesTS(new_abd._raw_data[1], new_abd._time, spin_weight=1)
-        new_abd._psi2 = ModesTS(new_abd._raw_data[2], new_abd._time, spin_weight=0)
-        new_abd._psi3 = ModesTS(new_abd._raw_data[3], new_abd._time, spin_weight=-1)
-        new_abd._psi4 = ModesTS(new_abd._raw_data[4], new_abd._time, spin_weight=-2)
-        new_abd._sigma = ModesTS(new_abd._raw_data[5], new_abd._time, spin_weight=2)
+        for i, component in enumerate(self.data_components):
+            sliced_component = ModesTS(new_abd._raw_data[i], new_abd._time, spin_weight = getattr(new_abd, component).spin_weight)
+            setattr(new_abd, f"_{component}", sliced_component)
 
         if self.frame.shape[0] == self.n_times:
             new_abd.frame = self.frame[key]
-        return new_abd          
-
+        return new_abd
 
     def copy(self):
         import copy
@@ -216,15 +243,13 @@ class AsymptoticBondiData:
         return new_abd
 
     def interpolate(self, new_times):
-        new_abd = type(self)(new_times, self.ell_max)
-        new_abd.frameType = self.frameType
+        new_abd = self.copy()
+        new_abd._time = new_times
         # interpolate waveform data
-        new_abd.sigma = self.sigma.interpolate(new_times)
-        new_abd.psi4 = self.psi4.interpolate(new_times)
-        new_abd.psi3 = self.psi3.interpolate(new_times)
-        new_abd.psi2 = self.psi2.interpolate(new_times)
-        new_abd.psi1 = self.psi1.interpolate(new_times)
-        new_abd.psi0 = self.psi0.interpolate(new_times)
+        for field in new_abd.data_components:
+            interpolated_fields = getattr(self, field).interpolate(new_times)
+            setattr(new_abd, f"_{field}", interpolated_fields)
+
         # interpolate frame data if necessary
         if self.frame.shape[0] == self.n_times:
             import quaternion
@@ -261,3 +286,90 @@ class AsymptoticBondiData:
 
     from .map_to_superrest_frame import map_to_superrest_frame
     from .map_to_abd_frame import map_to_abd_frame
+
+class AsymptoticBondiData_v1(AsymptoticBondiData):
+    """Asymptotic Bondi data with a field based constructor.
+    """
+
+    def __init__(self, time=None, ell_max=None, psi0=None, psi1=None, psi2=None, psi3=None, psi4=None, sigma=None, frameType=Inertial, multiplication_truncator=max, **kwargs):
+        """
+        Parameters
+        ----------
+        time: array_like, optional
+            Times at which the data will be stored.
+        ell_max: int, optional
+            Maximum ell value to be stored
+
+        psi0, psi1, psi2, psi3, psi4 : scri.ModesTimeSeries, optional
+        Mode data for the Weyl scalars Ψ_0 ... Ψ_4. If Ψ_i is given, all
+        higher-index scalars Ψ_j (j > i) must also be given.
+
+        frameType : scri.FrameType, optional
+            Frame in which the data is expressed. Default is ``Inertial``.
+        multiplication_truncator : callable, optional
+            Function that sets the ell_max of a product of two mode series, e.g.
+            ``max`` or ``sum``. Default is ``max``.
+        """
+        self._time = time
+        self._ell_max = ell_max
+        fields_dict = {"psi0": (psi0, 2), "psi1": (psi1, 1), "psi2": (psi2, 0),
+                  "psi3": (psi3, -1), "psi4": (psi4, -2), "sigma": (sigma, 2)}
+
+        for field, (value, spin_weight) in fields_dict.items():
+            setattr(self, f"_{field}",
+                    ModesTimeSeries(value.data, time=value.time, ell_min=value.ell_min, ell_max=value.ell_max, spin_weight=spin_weight, multiplication_truncator=multiplication_truncator) if value is not None else None)
+
+        self.frameType = frameType
+        self.frame = kwargs.pop("frame", np.array([]))
+
+        self.validate_fields()
+        self.validate_times()
+        self.construct_raw_data()
+
+    @property
+    def ell_max(self):
+        """ell_max is either obtained from the kwarg or is set to the minimum
+        value of ell_max among all the fields provided."""
+        if self.data_components:
+            self._ell_max = min([getattr(self, f"{field}").ell_max for field in self.data_components])
+        return self._ell_max
+
+    def validate_fields(self):
+        """Check if the input fields are sensible."""
+        fields = ["psi0", "psi1", "psi2", "psi3", "psi4"]
+        fields_present = [True if field in self.data_components else False for field in fields]
+
+        for i, (name, present) in enumerate(zip(fields, fields_present)):
+            if present:
+                missing = [f for f, p in zip(fields[i + 1 :], fields_present[i + 1 :]) if not p]
+                if missing:
+                    raise ValueError(f"{name} is present but higher-order Weyl scalars are missing: {missing}")
+
+    def validate_times(self):
+        """Check if the input time and/or the time arrays of the fields mutually
+        agree with each other.
+        """
+
+        present_fields = self.data_components
+        t_ref = self.t if self.t is not None else self._sigma.t
+
+        for field in present_fields:
+            if getattr(self, f"has_{field}"):
+                if not np.array_equal(t_ref, getattr(self, field).t):
+                    raise ValueError(
+                        f"All fields i.e. Strain and Weyl scalar components must share the same set of times."
+                        f"The data for {field} has a different set of times."
+                    )
+
+        self._time = t_ref
+
+    def construct_raw_data(self):
+        n_modes = LM_total_size(0, self.ell_max)
+        n_times = self.n_times
+        n_components = len(self.data_components)
+
+        shape = [n_components, n_times, n_modes]
+        self._raw_data = np.zeros(shape, dtype=complex)
+
+        for i, field in enumerate(self.data_components):
+            self._raw_data[i,:,:] = getattr(self, field).view(np.ndarray)
