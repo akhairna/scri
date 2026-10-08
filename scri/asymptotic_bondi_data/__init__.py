@@ -300,7 +300,7 @@ class AsymptoticBondiData_v1(AsymptoticBondiData):
         ell_max: int, optional
             Maximum ell value to be stored
 
-        psi0, psi1, psi2, psi3, psi4 : scri.ModesTimeSeries, optional
+        psi0, psi1, psi2, psi3, psi4 : sxs.WaveformModes, optional
         Mode data for the Weyl scalars Ψ_0 ... Ψ_4. If Ψ_i is given, all
         higher-index scalars Ψ_j (j > i) must also be given.
 
