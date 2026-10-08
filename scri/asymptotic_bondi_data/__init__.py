@@ -364,6 +364,9 @@ class AsymptoticBondiData_v1(AsymptoticBondiData):
         self._time = t_ref
 
     def construct_raw_data(self):
+        """Construct the raw data array that will be used while performing BMS
+        transformations.
+        """
         n_modes = LM_total_size(0, self.ell_max)
         n_times = self.n_times
         n_components = len(self.data_components)
@@ -373,3 +376,5 @@ class AsymptoticBondiData_v1(AsymptoticBondiData):
 
         for i, field in enumerate(self.data_components):
             self._raw_data[i,:,:] = getattr(self, field).view(np.ndarray)
+
+    from ..julia import transform
