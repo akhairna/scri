@@ -281,6 +281,8 @@ def transform(self, **kwargs):
     """
     from quaternion import rotate_vectors
     from scipy.interpolate import CubicSpline
+    import functools
+    from sxs import WaveformModes
 
     # Parse the input arguments, and define the basic parameters for this function
     (
@@ -413,19 +415,24 @@ def transform(self, **kwargs):
 
     # Finally, transform back from the distorted grid to the SWSH mode weights as measured in that
     # grid.  I'll abuse notation slightly here by indicating those "distorted" mode weights with
-    # primes, so that f'(u')_{ℓ', m'} = ∫ f'(u', θ', ϕ') sȲ_{ℓ', m'}(θ', ϕ') sin(θ') dθ' dϕ'
-    abdprime = type(self)(timeprime, output_ell_max)
+    # primes, so that f'(u')_{ℓ', m'} = ∫ f'(u', θ', ϕ') sȲ_{ℓ', m'}(θ', ϕ')
+    # sin(θ') dθ' dϕ'
+
+    WM = functools.partial(WaveformModes, time=timeprime, modes_axis=1, ell_min=0, ell_max=output_ell_max)
+
     # ψ0'(u')_{ℓ', m'}
-    abdprime.psi0 = spinsfast.map2salm(fprime_of_timeprime_directionprime[0], 2, output_ell_max)
+    psi0 = WM(spinsfast.map2salm(fprime_of_timeprime_directionprime[0], 2, output_ell_max))
     # ψ1'(u')_{ℓ', m'}
-    abdprime.psi1 = spinsfast.map2salm(fprime_of_timeprime_directionprime[1], 1, output_ell_max)
+    psi1 = WM(spinsfast.map2salm(fprime_of_timeprime_directionprime[1], 1, output_ell_max))
     # ψ2'(u')_{ℓ', m'}
-    abdprime.psi2 = spinsfast.map2salm(fprime_of_timeprime_directionprime[2], 0, output_ell_max)
+    psi2 = WM(spinsfast.map2salm(fprime_of_timeprime_directionprime[2], 0, output_ell_max))
     # ψ3'(u')_{ℓ', m'}
-    abdprime.psi3 = spinsfast.map2salm(fprime_of_timeprime_directionprime[3], -1, output_ell_max)
+    psi3 = WM(spinsfast.map2salm(fprime_of_timeprime_directionprime[3], -1, output_ell_max))
     # ψ4'(u')_{ℓ', m'}
-    abdprime.psi4 = spinsfast.map2salm(fprime_of_timeprime_directionprime[4], -2, output_ell_max)
+    psi4 = WM(spinsfast.map2salm(fprime_of_timeprime_directionprime[4], -2, output_ell_max))
     # σ'(u')_{ℓ', m'}
-    abdprime.sigma = spinsfast.map2salm(fprime_of_timeprime_directionprime[5], 2, output_ell_max)
+    sigma = WM(spinsfast.map2salm(fprime_of_timeprime_directionprime[5], 2, output_ell_max))
+
+    abdprime = type(self)(timeprime, output_ell_max, psi0=psi0, psi1=psi1, psi2=psi2, psi3=psi3, psi4=psi4, sigma=sigma)
 
     return abdprime

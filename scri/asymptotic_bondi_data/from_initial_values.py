@@ -67,6 +67,8 @@ def from_initial_values(cls, time, ell_max=8, sigma0=0.0, sigmadot0=0.0, sigmadd
     """
     import numpy as np
     from .. import ModesTimeSeries
+    import spherical as sf
+    from sxs import WaveformModes
 
     def asany_atleast2d_complex(a):
         a = np.asanyarray(a) + 0j
@@ -78,8 +80,12 @@ def from_initial_values(cls, time, ell_max=8, sigma0=0.0, sigmadot0=0.0, sigmadd
     psi1 = asany_atleast2d_complex(psi1)
     psi0 = asany_atleast2d_complex(psi0)
 
-    # Construct the empty container
-    abd = cls(time, ell_max, multiplication_truncator=max)
+    # Construct the empty container from zero modes data.
+    zero_modes = WaveformModes(np.zeros((len(time), sf.LM_total_size(0,
+    ell_max)), dtype=complex), time=time, modes_axis=1, ell_min=0,ell_max=ell_max)
+    fields = dict.fromkeys(["psi0", "psi1", "psi2", "psi3", "psi4", "sigma"], zero_modes)
+
+    abd = cls(time, ell_max, multiplication_truncator=max, **fields)
 
     # Evaluate sigma and derivatives
     if np.ndim(sigma0) == 0 or np.ndim(sigma0) == 1:
