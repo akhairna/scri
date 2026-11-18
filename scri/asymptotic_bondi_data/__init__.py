@@ -68,10 +68,9 @@ class AsymptoticBondiData:
         self._ell_min = 0
         self._multiplication_truncator = multiplication_truncator
 
-        fields = ("psi0", "psi1", "psi2", "psi3", "psi4", "sigma")
-        #Initialize field attributes with None.
-        for field in fields:
-            setattr(self, f"_{field}", None)
+        shape = [0, time.size, LM_total_size(0, self._ell_max)]
+        self._raw_data = np.zeros(shape, dtype=complex)
+        self._field_index = {}
 
     @property
     def time(self):
@@ -92,7 +91,7 @@ class AsymptoticBondiData:
 
     @property
     def n_modes(self):
-        return self.data.shape[-1]
+        return len(self.LM)
 
     @property
     def ell_min(self):
@@ -111,21 +110,16 @@ class AsymptoticBondiData:
 
     @property
     def sigma(self):
-        if self._sigma is None:
-            raise AttributeError("sigma data has not been provided.")
-        else:
-            return self._sigma
+        return self._get_field("sigma", spin_weight=2)
 
     @sigma.setter
     def sigma(self, sigmaprm):
-        if self._sigma is None:
-            self._sigma = self._construct_MTS_with_zeros(spin_weight=2)
-        self._sigma[:] = sigmaprm
+        self._set_field("sigma", sigmaprm)
         return self.sigma
 
     @property
     def h(self):
-        h_mts = 2.0 * self._sigma.bar
+        h_mts = 2.0 * self.sigma.bar
         return WaveformModes(
             t=h_mts.t,
             data=np.array(h_mts)[:, h_mts.index(abs(h_mts.s), -abs(h_mts.s)) :],
@@ -139,100 +133,60 @@ class AsymptoticBondiData:
 
     @property
     def psi4(self):
-        if self._psi4 is None:
-            raise AttributeError("psi4 data has not been provided.")
-        else:
-            return self._psi4
+        return self._get_field("psi4", spin_weight=-2)
 
     @psi4.setter
     def psi4(self, psi4prm):
-        if self._psi4 is None:
-            self._psi4 = self._construct_MTS_with_zeros(spin_weight=-2)
-        self._psi4[:] = psi4prm
+        self._set_field("psi4", psi4prm)
         return self.psi4
 
     @property
     def psi3(self):
-        if self._psi3 is None:
-            raise AttributeError("psi3 data has not been provided.")
-        else:
-            return self._psi3
+        return self._get_field("psi3", spin_weight=-1)
 
     @psi3.setter
     def psi3(self, psi3prm):
-        if self._psi3 is None:
-            self._psi3 = self._construct_MTS_with_zeros(spin_weight=-1)
-        self._psi3[:] = psi3prm
+        self._set_field("psi3", psi3prm)
         return self.psi3
 
     @property
     def psi2(self):
-        if self._psi2 is None:
-            raise AttributeError("psi2 data has not been provided.")
-        else:
-            return self._psi2
+        return self._get_field("psi2", spin_weight=0)
 
     @psi2.setter
     def psi2(self, psi2prm):
-        if self._psi2 is None:
-            self._psi2 = self._construct_MTS_with_zeros(spin_weight=0)
-        self._psi2[:] = psi2prm
+        self._set_field("psi2", psi2prm)
         return self.psi2
 
     @property
     def psi1(self):
-        if self._psi1 is None:
-            raise AttributeError("psi1 data has not been provided.")
-        else:
-            return self._psi1
+        return self._get_field("psi1", spin_weight=1)
 
     @psi1.setter
     def psi1(self, psi1prm):
-        if self._psi1 is None:
-            self._psi1 = self._construct_MTS_with_zeros(spin_weight=1)
-        self._psi1[:] = psi1prm
+        self._set_field("psi1", psi1prm)
         return self.psi1
 
     @property
     def psi0(self):
-        if self._psi0 is None:
-            raise AttributeError("psi0 data has not been provided")
-        else:
-            return self._psi0
+        return self._get_field("psi0", spin_weight=2)
 
     @psi0.setter
     def psi0(self, psi0prm):
-        if self._psi0 is None:
-            self._psi0 = self._construct_MTS_with_zeros(spin_weight=2)
-        self._psi0[:] = psi0prm
+        self._set_field("psi0", psi0prm)
         return self.psi0
 
     @property
     def data_components(self):
         """Return fields that are present in the ABD object."""
-
-        fields = ["psi0", "psi1", "psi2", "psi3", "psi4", "sigma"]
-        fields_present = [field for field in fields if getattr(self, f"_{field}") is not None]
-
-        return fields_present
+        return list(self._field_index.keys())
 
     @property
     def data(self):
         """Retun a consolidated array of the fields present in the ABD object
         with shape (n_components, n_times, n_modes).
         """
-        fields = self.data_components
-        n_modes = LM_total_size(0, self.ell_max)
-        n_times = self.n_times
-        n_components = len(fields)
-
-        shape = [n_components, n_times, n_modes]
-        data = np.empty(shape, dtype=complex)
-
-        for i, field in enumerate(fields):
-            data[i] = getattr(self, f"_{field}")
-
-        return data
+        return self._raw_data
 
     #Slicing
     def __getitem__(self, key):
@@ -243,10 +197,6 @@ class AsymptoticBondiData:
         # sliced data
         if not isinstance(key, (slice, int)):
             raise ValueError(f"Invalid key `{key}` of type `{type(key)}`.")
-
-        import functools
-
-        ModesTS = functools.partial(ModesTimeSeries, ell_max=self.ell_max, multiplication_truncator=self._multiplication_truncator)
 
         new_times = self.time[key]
         new_abd = type(self)(new_times, self.ell_max)
@@ -276,7 +226,7 @@ class AsymptoticBondiData:
         # interpolate waveform data
         for field in self.data_components:
             interpolated_fields = getattr(self, field).interpolate(new_abd.t)
-            setattr(new_abd, f"_{field}", interpolated_fields)
+            setattr(new_abd, f"{field}", interpolated_fields)
 
         # interpolate frame data if necessary
         if self.frame.shape[0] == self.n_times:
@@ -285,20 +235,38 @@ class AsymptoticBondiData:
             new_abd.frame = quaternion.squad(self.frame, self.t, new_times)
         return new_abd
 
-    def _construct_MTS_with_zeros(self, spin_weight=0):
-        """Return a new zero-filled ModesTimeSeries of shape (n_times, n_modes),
-        spanning ell = 0 to ell_max, with the given spin weight. This is a
-        helper function used for supporting the setter property of ABD fields.
+    def _get_field(self, field, spin_weight):
+        """Helper function to create a ModesTimeSeries view of a field from  `_raw_data`.
+        Raises AttributeError if field is absent in data_components.
         """
-        n_modes = LM_total_size(0, self.ell_max)
-        n_times = self.n_times
+        if field not in self.data_components:
+            raise AttributeError(f"{field} data has not been provided")
 
-        shape = [n_times, n_modes]
-        zeros_array = np.zeros(shape, dtype=complex)
+        field_idx = self._field_index[field]
+        field_mts = ModesTimeSeries(
+            self._raw_data[field_idx], self.t, ell_min=0,
+            ell_max=self.ell_max, spin_weight=spin_weight,
+            multiplication_truncator=self._multiplication_truncator,
+        )
+        return field_mts
 
-        zeros_MTS = ModesTimeSeries(zeros_array, self.t, ell_min=0, ell_max=self.ell_max, spin_weight=spin_weight, multiplication_truncator=self._multiplication_truncator)
+    def _set_field(self, field, value):
+        """Set the data of a field attribute, creating its slot in `_raw_data`
+        if needed.
+        The first time a field is set, `_raw_data` grows by one zero-filled slot
+        and the field's index is recorded in `self._field_index`. 
+        The value is then broadcasted into that slot.
+        """
+        if field not in self.data_components:
+            n_components = len(self.data_components)
+            n_times = self.n_times
+            n_modes = self.n_modes
 
-        return zeros_MTS
+            self._raw_data.resize((n_components + 1, n_times, n_modes),
+                refcheck=False)
+            self._field_index[field] = n_components
+
+        self._raw_data[self._field_index[field]] = value
 
     def validate_fields(self):
         """Check if the provided fields are sensible for performing BMS

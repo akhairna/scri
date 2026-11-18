@@ -340,7 +340,7 @@ def transform(self, **kwargs):
     ### were computed automatically by evaluating in terms of quaternions.
     #
     fprime_of_timenaught_directionprime = np.empty((n_components, self.n_times, n_theta, n_phi), dtype=complex)
-    idx = {c: i for i, c in enumerate(data_components)}
+    idx = self._field_index
 
     if "psi0" in data_components:
         # ψ0'(u, θ', ϕ')
