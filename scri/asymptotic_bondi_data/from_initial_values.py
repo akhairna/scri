@@ -79,8 +79,8 @@ def from_initial_values(cls, time, ell_max=8, sigma0=0.0, sigmadot0=0.0, sigmadd
     psi0 = asany_atleast2d_complex(psi0)
 
     # Construct the empty container
-    abd = cls(time, ell_max, multiplication_truncator=max)
-
+    data_components = ["psi0", "psi1", "psi2", "psi3", "psi4", "sigma"]
+    abd = cls(time, ell_max, multiplication_truncator=max, data_components=data_components)
     # Evaluate sigma and derivatives
     if np.ndim(sigma0) == 0 or np.ndim(sigma0) == 1:
         # Assume this is just the angular dependence, which will be taken as

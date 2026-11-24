@@ -762,11 +762,15 @@ def create_abd_from_h5(
         WMs[i].t = WMs[i].t[indices]
         WMs[i].data = WMs[i].data[indices]
 
+    data_components = [field.lower() for field in WMs.keys()]
+    if "h" in data_components:
+        data_components[data_components.index("h")] = "sigma"
     # Create an instance of AsymptoticBondiData
     abd = AsymptoticBondiData(
         time=WM_ref.t,
         ell_max=WM_ref.ell_max,
         multiplication_truncator=max,
+        data_components=data_components
     )
 
     # Define factors to convert between input waveform convention and Moreschi-Boyle convention
@@ -776,47 +780,38 @@ def create_abd_from_h5(
         "spec": [2, -np.sqrt(2), 1, -1 / np.sqrt(2), 0.5, 0.5],
     }
 
-    shape = (abd.n_times, abd.n_modes)
     # Load the WaveformModes data into the ABD object and convert to the Moreschi-Boyle convention.
     if "Psi4" in WMs:
-        ψ4 = np.zeros(shape, dtype=complex)
-        ψ4[:, sf.LM_index(WMs["Psi4"].ell_min, -WMs["Psi4"].ell_min, 0) :] = (
+        abd.psi4[:, sf.LM_index(WMs["Psi4"].ell_min, -WMs["Psi4"].ell_min, 0) :] = (
             conversion_factor[convention][4] * WMs["Psi4"].data
         )
-        abd.psi4 = ψ4
     if "Psi3" in WMs:
-        ψ3 = np.zeros(shape, dtype=complex)
-        ψ3[:, sf.LM_index(WMs["Psi3"].ell_min, -WMs["Psi3"].ell_min, 0) :] = (
+        abd.psi3[:, sf.LM_index(WMs["Psi3"].ell_min, -WMs["Psi3"].ell_min, 0) :] = (
             conversion_factor[convention][3] * WMs["Psi3"].data
         )
-        abd.psi3 = ψ3
     if "Psi2" in WMs:
-        ψ2 = np.zeros(shape, dtype=complex)
-        ψ2[:, sf.LM_index(WMs["Psi2"].ell_min, -WMs["Psi2"].ell_min, 0) :] = (
+        abd.psi2[:, sf.LM_index(WMs["Psi2"].ell_min, -WMs["Psi2"].ell_min, 0) :] = (
             conversion_factor[convention][2] * WMs["Psi2"].data
         )
-        abd.psi2 = ψ2
     if "Psi1" in WMs:
-        ψ1 = np.zeros(shape, dtype=complex)
-        ψ1[:, sf.LM_index(WMs["Psi1"].ell_min, -WMs["Psi1"].ell_min, 0) :] = (
+        abd.psi1[:, sf.LM_index(WMs["Psi1"].ell_min, -WMs["Psi1"].ell_min, 0) :] = (
             conversion_factor[convention][1] * WMs["Psi1"].data
         )
-        abd.psi1 = ψ1
     if "Psi0" in WMs:
-        ψ0 = np.zeros(shape, dtype=complex)
-        ψ0[:, sf.LM_index(WMs["Psi0"].ell_min, -WMs["Psi0"].ell_min, 0) :] = (
+        abd.psi0[:, sf.LM_index(WMs["Psi0"].ell_min, -WMs["Psi0"].ell_min, 0) :] = (
             conversion_factor[convention][0] * WMs["Psi0"].data
         )
-        abd.psi0 = ψ0
     # ABD uses the Newman-Penrose scalar sigma instead of the strain h, so we have to take
     # the complex conjugate.
-    h_str = next((s for s in ("h", "Strain") if s in WMs), None)
-    if h_str is not None:
-        σ = np.zeros(shape, dtype=complex)
-        σ[:, sf.LM_index(WMs[h_str].ell_min, -WMs[h_str].ell_min, 0) :] = (
-            conversion_factor[convention][5] * WMs[h_str].data
+    if "h" in WMs:
+        abd.sigma[:, sf.LM_index(WMs["h"].ell_min, -WMs["h"].ell_min, 0) :] = (
+            conversion_factor[convention][5] * WMs["h"].data
         )
-        abd.sigma = σ
+        abd.sigma = abd.sigma.bar
+    elif "Strain" in WMs:
+        abd.sigma[:, sf.LM_index(WMs["Strain"].ell_min, -WMs["Strain"].ell_min, 0) :] = (
+            conversion_factor[convention][5] * WMs["Strain"].data
+        )
         abd.sigma = abd.sigma.bar
 
     # Interpolate to finer time array, if specified

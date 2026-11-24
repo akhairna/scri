@@ -32,7 +32,7 @@ class AsymptoticBondiData:
 
     """
 
-    def __init__(self, time, ell_max, multiplication_truncator=sum, frameType=Inertial):
+    def __init__(self, time, ell_max, multiplication_truncator=sum, frameType=Inertial, data_components=[]):
         """Create new storage for asymptotic Bondi data
 
         Parameters
@@ -49,7 +49,12 @@ class AsymptoticBondiData:
             also the most wasteful, and very likely to be overkill.  The user should probably always
             use `max`.  (Unfortunately, this must remain an opt-in choice, to ensure that the user
             is aware of the situation.)
-
+        data_components: list[str] defaults to []
+            List of fields to be allocated in AsymptoticBondiData object.
+            Must contain at least one field from
+            ['psi4', 'psi3', 'psi2', 'psi1', 'psi0', 'sigma']
+            Only the fields listed here are stored, and accessing or setting any
+            other field raises an AttributeError.
         """
         import functools
 
@@ -60,6 +65,7 @@ class AsymptoticBondiData:
             raise ValueError(f"Input `time` parameter must be an integer or a 1-d array; it has shape {time.shape}")
         if time.dtype != float:
             raise ValueError(f"Input `time` parameter must have dtype float; it has dtype {time.dtype}")
+        ModesTS = functools.partial(ModesTimeSeries, ell_max=ell_max, multiplication_truncator=multiplication_truncator)
 
         self.frame = np.array([])
         self.frameType = frameType
@@ -68,9 +74,30 @@ class AsymptoticBondiData:
         self._ell_min = 0
         self._multiplication_truncator = multiplication_truncator
 
-        shape = [0, time.size, LM_total_size(0, self._ell_max)]
+        spin_dict = {"psi0": 2, "psi1": 1, "psi2": 0,
+        "psi3": -1, "psi4": -2, "sigma": 2}
+
+        n_components = len(data_components)
+        if n_components < 1:
+            raise ValueError(f"data_componets must contain at least one field. Valid fields are {spin_dict.keys()}.")
+
+        unknown_components = set(data_components) - set(spin_dict)
+        if unknown_components:
+            raise ValueError(f"Unknown data components {list(unknown_components)}; Valid fields are {spin_dict.keys()}.")
+
+        self.data_components = data_components
+
+        n_times = self.n_times
+        n_modes = self.n_modes
+
+        shape = [n_components, n_times, n_modes]
         self._raw_data = np.zeros(shape, dtype=complex)
         self._field_index = {}
+
+        for index, field in enumerate(data_components):
+            setattr(self, f"_{field}",
+                    ModesTS(self._raw_data[index], self.time, spin_weight=spin_dict[field]))
+            self._field_index[field] = index
 
     @property
     def time(self):
@@ -110,11 +137,13 @@ class AsymptoticBondiData:
 
     @property
     def sigma(self):
-        return self._get_field("sigma", spin_weight=2)
+        self._check_field("sigma")
+        return self._sigma
 
     @sigma.setter
     def sigma(self, sigmaprm):
-        self._set_field("sigma", sigmaprm)
+        self._check_field("sigma")
+        self._sigma[:] = sigmaprm
         return self.sigma
 
     @property
@@ -133,53 +162,58 @@ class AsymptoticBondiData:
 
     @property
     def psi4(self):
-        return self._get_field("psi4", spin_weight=-2)
+        self._check_field("psi4")
+        return self._psi4
 
     @psi4.setter
     def psi4(self, psi4prm):
-        self._set_field("psi4", psi4prm)
+        self._check_field("psi4")
+        self._psi4[:] = psi4prm
         return self.psi4
 
     @property
     def psi3(self):
-        return self._get_field("psi3", spin_weight=-1)
+        self._check_field("psi3")
+        return self._psi3
 
     @psi3.setter
     def psi3(self, psi3prm):
-        self._set_field("psi3", psi3prm)
+        self._check_field("psi3")
+        self._psi3[:] = psi3prm
         return self.psi3
 
     @property
     def psi2(self):
-        return self._get_field("psi2", spin_weight=0)
+        self._check_field("psi2")
+        return self._psi2
 
     @psi2.setter
     def psi2(self, psi2prm):
-        self._set_field("psi2", psi2prm)
+        self._check_field("psi2")
+        self._psi2[:] = psi2prm
         return self.psi2
 
     @property
     def psi1(self):
-        return self._get_field("psi1", spin_weight=1)
+        self._check_field("psi1")
+        return self._psi1
 
     @psi1.setter
     def psi1(self, psi1prm):
-        self._set_field("psi1", psi1prm)
+        self._check_field("psi1")
+        self._psi1[:] = psi1prm
         return self.psi1
 
     @property
     def psi0(self):
-        return self._get_field("psi0", spin_weight=2)
+        self._check_field("psi0")
+        return self._psi0
 
     @psi0.setter
     def psi0(self, psi0prm):
-        self._set_field("psi0", psi0prm)
+        self._check_field("psi0")
+        self._psi0[:] = psi0prm
         return self.psi0
-
-    @property
-    def data_components(self):
-        """Return fields that are present in the ABD object."""
-        return list(self._field_index.keys())
 
     @property
     def data(self):
@@ -199,11 +233,11 @@ class AsymptoticBondiData:
             raise ValueError(f"Invalid key `{key}` of type `{type(key)}`.")
 
         new_times = self.time[key]
-        new_abd = type(self)(new_times, self.ell_max)
+        new_abd = type(self)(new_times, self.ell_max, data_components=self.data_components)
         new_abd.frameType = self.frameType
         new_abd._multiplication_truncator = self._multiplication_truncator
 
-        for i, field in enumerate(self.data_components):
+        for i, field in enumerate(new_abd.data_components):
             sliced_data = getattr(self, field)[key]
             setattr(new_abd, f"{field}", sliced_data)
 
@@ -214,17 +248,17 @@ class AsymptoticBondiData:
     def copy(self):
         import copy
 
-        new_abd = type(self)(self.t, self.ell_max)
+        new_abd = type(self)(self.t, self.ell_max, data_components=self.data_components)
         state = copy.deepcopy(self.__dict__)
         new_abd.__dict__.update(state)
         return new_abd
 
     def interpolate(self, new_times):
-        new_abd = type(self)(new_times, self.ell_max)
+        new_abd = type(self)(new_times, self.ell_max, data_components=self.data_components)
         new_abd.frameType = self.frameType
         new_abd._multiplication_truncator = self._multiplication_truncator
         # interpolate waveform data
-        for field in self.data_components:
+        for field in new_abd.data_components:
             interpolated_fields = getattr(self, field).interpolate(new_abd.t)
             setattr(new_abd, f"{field}", interpolated_fields)
 
@@ -235,38 +269,14 @@ class AsymptoticBondiData:
             new_abd.frame = quaternion.squad(self.frame, self.t, new_times)
         return new_abd
 
-    def _get_field(self, field, spin_weight):
-        """Helper function to create a ModesTimeSeries view of a field from  `_raw_data`.
-        Raises AttributeError if field is absent in data_components.
+    def _check_field(self, field):
+        """Helper function to check and raise an error if a given field is absent in the data_components.
         """
         if field not in self.data_components:
-            raise AttributeError(f"{field} data has not been provided")
-
-        field_idx = self._field_index[field]
-        field_mts = ModesTimeSeries(
-            self._raw_data[field_idx], self.t, ell_min=0,
-            ell_max=self.ell_max, spin_weight=spin_weight,
-            multiplication_truncator=self._multiplication_truncator,
-        )
-        return field_mts
-
-    def _set_field(self, field, value):
-        """Set the data of a field attribute, creating its slot in `_raw_data`
-        if needed.
-        The first time a field is set, `_raw_data` grows by one zero-filled slot
-        and the field's index is recorded in `self._field_index`. 
-        The value is then broadcasted into that slot.
-        """
-        if field not in self.data_components:
-            n_components = len(self.data_components)
-            n_times = self.n_times
-            n_modes = self.n_modes
-
-            self._raw_data.resize((n_components + 1, n_times, n_modes),
-                refcheck=False)
-            self._field_index[field] = n_components
-
-        self._raw_data[self._field_index[field]] = value
+            raise AttributeError(
+                f"'{field}' is not available; this object was created with "
+                f"data_components={self.data_components}."
+            )
 
     def validate_fields(self):
         """Check if the provided fields are sensible for performing BMS

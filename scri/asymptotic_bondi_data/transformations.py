@@ -429,7 +429,7 @@ def transform(self, **kwargs):
     # Finally, transform back from the distorted grid to the SWSH mode weights as measured in that
     # grid.  I'll abuse notation slightly here by indicating those "distorted" mode weights with
     # primes, so that f'(u')_{ℓ', m'} = ∫ f'(u', θ', ϕ') sȲ_{ℓ', m'}(θ', ϕ') sin(θ') dθ' dϕ'
-    abdprime = type(self)(timeprime, output_ell_max)
+    abdprime = type(self)(timeprime, output_ell_max, data_components=self.data_components)
 
     # ψi'(u')_{ℓ', m'}
     for field in data_components:
